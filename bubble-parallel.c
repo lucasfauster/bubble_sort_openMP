@@ -21,15 +21,7 @@ void printArray(int vetSize, int * data){
 
 void main(int argc, char **argv){
 	int * data;
-	int * chunk;
-	int * chunkAux;
-	int chunkAuxSize,vetSize;
-	int id,numProcs;
-	int chunkSize;
-	int i;  
-	int step;
-    int rest;
-
+	int vetSize, numProcs;
 
 	printf("size of the array: ");
 	fflush(stdout);
@@ -39,12 +31,10 @@ void main(int argc, char **argv){
 	fflush(stdout);
 	scanf("%i", &numProcs);
 
-	chunkSize = vetSize/numProcs;
-
 	data = (int *)malloc(vetSize*sizeof(int));
 
 	int j = 0;
-	for(i = vetSize; i > 0; i--){
+	for(int i = vetSize; i > 0; i--){
 		data[j] = i;
 		j++;
 	}
@@ -53,9 +43,9 @@ void main(int argc, char **argv){
 	
 	omp_set_num_threads(numProcs); // seta o número de processos
 
-    for(i=0;i<vetSize;i++){
+    for(int i=0;i<vetSize;i++){
         int first=i%2;
-        #pragma omp parallel for default(none),shared(data, first, vetSize)
+        #pragma omp parallel for
         for(j=first;j<vetSize-1;j+=2){
             if (data[j] > data[j+1]){
                 swap(data,j,j+1);
