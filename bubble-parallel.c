@@ -4,7 +4,7 @@
 #include <time.h>
 
 int * merge(int *v1, int size1, int *v2, int size2);
-void swap(int *v, int i, int j);
+void swap(int*, int, int); 
 void bubblesort(int *v, int n);
 
 double startT,stopT;
@@ -45,19 +45,27 @@ int * merge(int *v1, int size1, int *v2, int size2){
 	return result;
 }
 
-void swap(int *v, int i, int j){
-	int t;
-	t = v[i];
-	v[i] = v[j];
-	v[j] = t;
+void swap(int* v, int a, int b){
+    unsigned temp;
+    temp=v[a];
+    v[a]=v[b];
+    v[b]=temp;
 }
 
-void bubblesort(int *v, int n){
-	int i,j;
-	for(i=n-2;i>=0;i--)
-		for(j=0;j<=i;j++)
-			if(v[j]>v[j+1])
-				swap(v,j,j+1);
+// void bubbleSort(int* a, int left, int right){
+//    int i, j;
+//    for (i = left; i < right; i++)      
+//        for (j = left; j < right; j++){
+//            if (a[j] > a[j+1]){
+// 				swap(&a[j], &a[j+1]);
+// 			}
+// 	   }
+// }
+
+void printzada(int vetSize, int * data){
+	for(int i=0;i<vetSize;i++) 
+		printf(" %d;",data[i]);
+	printf("\n");
 }
 
 void main(int argc, char **argv){
@@ -71,70 +79,73 @@ void main(int argc, char **argv){
 	int step;
     int rest;
 
-	if(id == 0){
-		printf("size of the array: ");
-		fflush(stdout);
-		scanf("%i", &vetSize);
 
-		chunkSize = vetSize/numProcs;
-		rest = vetSize%numProcs;
+	printf("size of the array: ");
+	fflush(stdout);
+	scanf("%i", &vetSize);
 
-		data = (int *)malloc((vetSize+numProcs-rest)*sizeof(int));
+	printf("num of processes: ");
+	fflush(stdout);
+	scanf("%i", &numProcs);
 
-        for(i = vetSize; i > 0; i--)
-			data[i] = i;
+	chunkSize = vetSize/numProcs;
 
-		if(rest!=0){
-			for(i=vetSize;i<vetSize+numProcs-rest;i++) data[i]=__INT_MAX__;
-			chunkSize=chunkSize+1;
-		}
+	data = (int *)malloc(vetSize*sizeof(int));
 
-		startT = clock();
-        
-        MPI_Bcast(&chunkSize,1,MPI_INT,0,MPI_COMM_WORLD); //comunica do processo principal para todos os processos o tamanho de uma parte do array
-        chunk = (int *)malloc(chunkSize*sizeof(int));
-        MPI_Scatter(data,chunkSize,MPI_INT,chunk,chunkSize,MPI_INT,0,MPI_COMM_WORLD); // divide o array principal em pedaços pada cada processo
+	int j = 0;
+	for(i = vetSize; i > 0; i--){
+		data[j] = i;
+		j++;
+	}
 
-        bubblesort(chunk,chunkSize);
-    }else{
-        MPI_Bcast(&chunkSize,1,MPI_INT,0,MPI_COMM_WORLD); // processos subordinados recebem o tamanho do array do processo principal
-        chunk = (int *)malloc(chunkSize*sizeof(int));
-        MPI_Scatter(NULL,0,NULL,chunk,chunkSize,MPI_INT,0,MPI_COMM_WORLD); // processos subordinados recebem o array dividido pelo processo principal
+	startT = clock();
+	
+	omp_set_num_threads(numProcs); // seta o número de processos
 
-        bubblesort(chunk,chunkSize);
+    for(i=0;i<vetSize;i++){
+        int first=i%2;
+        #pragma omp parallel for default(none),shared(data, first, vetSize)
+        for(j=first;j<vetSize-1;j+=2){
+            if (data[j] > data[j+1]){
+                swap(data,j,j+1);
+            }
+        }
     }
 
-	step = 1;
-	while(step < numProcs){
-		if(id % (2 * step) != 0){ // id 0 nunca entra nesse if, apenas ids ímpares no primeiro step e ids pares nos steps > 1
-			int destinationId = id-step;
-			MPI_Send(&chunkSize,1,MPI_INT,destinationId,0,MPI_COMM_WORLD); // envia o tamanho do pedaço do array ordenado para o processo destinatário
-			MPI_Send(chunk,chunkSize,MPI_INT,destinationId,0,MPI_COMM_WORLD); // envia os valores do pedaço do array ordenado para o processo destinatário
-			break;
-		}
 
-        if(id + step < numProcs){ // id 0 sempre entra nesse if e ids pares esperam receber dos ids impares no primeiro step
-            MPI_Recv(&chunkAuxSize,1,MPI_INT,id+step,0,MPI_COMM_WORLD,&status); // espera receber o tamanho do pedaço do array ordenado do processo de origem
-            chunkAux = (int *)malloc(chunkAuxSize*sizeof(int));
+    // for (i = 1; i <= numProcs - 2; i++) { // All but the last subarray
+	// 	int middle = num * chunkSize;
+	// 	merge(a, b, 0, middle, middle + chunkSize - 1);
+	// }
+	// merge(a, b, 0, (numProcs - 1) * chunkSize, vet - 1); // Last subarray
 
-            MPI_Recv(chunkAux,chunkAuxSize,MPI_INT,id+step,0,MPI_COMM_WORLD,&status); // espera receber os valores do pedaço do array ordenado do processo de origem
-            chunk = merge(chunk,chunkSize,chunkAux,chunkAuxSize); // junta os pedaços do array ordenado no array principal
-            chunkSize = chunkSize+chunkAuxSize;
-        } 
+	// step = 1;
+	// while(step < numProcs){
+	// 	id = n
+	// 	if(id % (2 * step) != 0){ // id 0 nunca entra nesse if, apenas ids ímpares no primeiro step e ids pares nos steps > 1
+	// 		int destinationId = id-step;
+	// 		MPI_Send(&chunkSize,1,MPI_INT,destinationId,0,MPI_COMM_WORLD); // envia o tamanho do pedaço do array ordenado para o processo destinatário
+	// 		MPI_Send(chunk,chunkSize,MPI_INT,destinationId,0,MPI_COMM_WORLD); // envia os valores do pedaço do array ordenado para o processo destinatário
+	// 		break;
+	// 	}
 
-        step = step*2;
-	}
+	//     if(id + step < numProcs){ // id 0 sempre entra nesse if e ids pares esperam receber dos ids impares no primeiro step
+	//         MPI_Recv(&chunkAuxSize,1,MPI_INT,id+step,0,MPI_COMM_WORLD,&status); // espera receber o tamanho do pedaço do array ordenado do processo de origem
+	//         chunkAux = (int *)malloc(chunkAuxSize*sizeof(int));
 
-	if(id==0){
-		stopT = clock();
+	//         MPI_Recv(chunkAux,chunkAuxSize,MPI_INT,id+step,0,MPI_COMM_WORLD,&status); // espera receber os valores do pedaço do array ordenado do processo de origem
+	//         chunk = merge(chunk,chunkSize,chunkAux,chunkAuxSize); // junta os pedaços do array ordenado no array principal
+	//         chunkSize = chunkSize+chunkAuxSize;
+	//     } 
 
-		for(i=0;i<chunkSize*numProcs;i++) 
-            if(chunk[i] != __INT_MAX__) printf(" %d;",chunk[i]);
+	//     step = step*2;
+	// }
 
-  		printf("\n");
+	stopT = clock();
 
-		printf("array size: %d; %d processors; %f secs\n",vetSize,numProcs,(stopT-startT)/CLOCKS_PER_SEC);
-	}
-	
-	MPI_Finalize();
+	printzada(vetSize, data);
+
+	printf("\n");
+
+	printf("array size: %d; %d processors; %f secs\n",vetSize,numProcs,(stopT-startT)/CLOCKS_PER_SEC);
 }
