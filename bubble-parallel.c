@@ -1,6 +1,5 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/time.h>
 #include <omp.h>
 
 void merge(int *data, int size, int left, int mid, int right);
@@ -11,8 +10,8 @@ void printArray(int vetSize, int *data);
 
 void main(int argc, char *argv[])
 {
-    int vetSize = atoi(argv[1]); // Array size
-    int numProcs = atoi(argv[2]); // Number of threads
+    int vetSize = atoi(argv[1]); // tamanho do vetor
+    int numProcs = atoi(argv[2]); // número de threads
 
     int *data = malloc(vetSize*sizeof(int));
     
