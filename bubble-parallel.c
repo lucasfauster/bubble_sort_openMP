@@ -77,6 +77,7 @@ void initWorstCase(int *data, int vetSize){
 }
 
 void printArray(int vetSize, int *data){
+    printf("Array: \n");
 	for (int i = 0; i < vetSize; i++)
 		printf(" %d;", data[i]);
 	printf("\n\n");
@@ -106,11 +107,27 @@ void main(int argc, char *argv[]){
             bubbleSort(data, left, vetSize - 1);
     }
 
-	for (int i = 1; i <= numProcs - 2; i++){
-		int middle = i * chunkSize;
-		merge(data, vetSize, 0, middle, middle + chunkSize - 1);
-	}
-	merge(data, vetSize, 0, (numProcs-1)*chunkSize, vetSize - 1);
+	
+    for(int i = 2; i <= numProcs; i *= 2){
+        chunkSize = chunkSize*2;
+        omp_set_num_threads(numProcs/i);
+
+        #pragma omp parallel
+        {
+            int tid = omp_get_thread_num(); // id dessa thread
+            int left = tid * chunkSize; // posição inicial da esquerda da fatia
+            int right = left + chunkSize - 1; // posição final da direita da fatia
+            int mid = (left + right)/2 + 1; // posição inicial da direita da fatia
+
+            if(tid != (numProcs/i - 1) || right == vetSize-1) 
+                merge(data, vetSize, left, mid, right); // se não for o último processo ou se for mas ele chega até o final do vetor            
+            
+            else{ // se for o que está com a última fatia
+                merge(data, vetSize, left, mid, right); // primeiro ordena as fatias que tem
+                merge(data, vetSize, left, right+1, vetSize-1); // ordena a última fatia na junção das fatias
+            }
+        }
+    }
 
     double stopT = omp_get_wtime();
 
